@@ -34,7 +34,7 @@ export const SyncLinkedInModal: React.FC<SyncLinkedInModalProps> = ({
   onErrorToast,
   onSyncSuccess,
 }) => {
-  const { getAuthHeaders } = useAuth();
+  const { getAuthHeaders, user } = useAuth();
   const [activeTab, setActiveTab] = useState<'extension' | 'csv'>('extension');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -237,12 +237,12 @@ export const SyncLinkedInModal: React.FC<SyncLinkedInModalProps> = ({
                   Active PathPrint Account ID (For Extension)
                 </span>
                 <span className="font-mono text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                  {useAuth().user?.uid || useAuth().user?.email || 'candidate-workspace'}
+                  {user?.uid || user?.email || 'candidate-workspace'}
                 </span>
               </div>
               <button
                 onClick={() => {
-                  const id = useAuth().user?.uid || useAuth().user?.email || 'candidate-workspace';
+                  const id = user?.uid || user?.email || 'candidate-workspace';
                   navigator.clipboard.writeText(id);
                   onSuccessToast('Account ID copied to clipboard!');
                 }}

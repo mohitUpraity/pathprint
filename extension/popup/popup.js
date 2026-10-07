@@ -197,22 +197,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Auto-Detect Active PathPrint Web App Session
-  async function detectAndConnectCareerOsSession() {
+  // Auto-Detect Active Web App Session
+  async function detectAndConnectPathPrintSession() {
     try {
       if (accountUserDisplay) accountUserDisplay.textContent = "Scanning active tabs...";
       
       const tabs = await chrome.tabs.query({});
-      const careerOsTabs = tabs.filter(t => 
+      const targetTabs = tabs.filter(t => 
         t.url && (
-          t.url.includes("pathprintv5.vercel.app") || 
+          t.url.includes("careerosv5.vercel.app") || 
+          t.url.includes("pathprint") ||
           t.url.includes("localhost:5173") || 
           t.url.includes("localhost:3000") ||
           t.url.includes("localhost:8000")
         )
       );
 
-      if (careerOsTabs.length === 0) {
+      if (targetTabs.length === 0) {
         if (accountUserDisplay) {
           chrome.storage.local.get(["userId", "linkedAccountEmail"], (res) => {
             if (res.linkedAccountEmail) {
@@ -229,7 +230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
-      const targetTab = careerOsTabs[0];
+      const targetTab = targetTabs[0];
       if (targetTab.url && targetTab.url.includes("localhost")) {
         if (backendSelect) backendSelect.value = LOCAL_API_URL;
         updateFooterLinks(LOCAL_API_URL);
@@ -242,8 +243,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         target: { tabId: targetTab.id },
         func: () => {
           try {
-            const directId = localStorage.getItem("pathprint_user_id");
-            const directUser = localStorage.getItem("pathprint_user");
+            const directId = localStorage.getItem("careeros_user_id") || localStorage.getItem("pathprint_user_id");
+            const directUser = localStorage.getItem("careeros_user") || localStorage.getItem("pathprint_user");
             if (directId) {
               let parsed = {};
               try { parsed = JSON.parse(directUser); } catch(e){}
@@ -319,11 +320,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   btnAutoLinkAccount?.addEventListener("click", () => {
-    detectAndConnectCareerOsSession();
+    detectAndConnectPathPrintSession();
   });
 
   setTimeout(() => {
-    detectAndConnectCareerOsSession();
+    detectAndConnectPathPrintSession();
   }, 100);
 
   // Backend Health Ping
@@ -475,9 +476,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         let noNew = 0;
         let totalCount = 0;
 
-        // Try extracting total count from header (e.g. "842 connections")
+        // Try extracting total count from header (e.g. "850 connections" or "842 results")
         const headerText = document.body ? document.body.innerText : "";
-        const countMatch = headerText.match(/(\d[\d,]*)\s+connections/i);
+        const countMatch = headerText.match(/(\d[\d,]*)\s+connections/i) || headerText.match(/(\d[\d,]*)\s+results/i);
         if (countMatch && countMatch[1]) {
           totalCount = parseInt(countMatch[1].replace(/,/g, ""), 10) || 0;
         }
@@ -494,7 +495,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           hud.style.color = "#ffffff";
           hud.style.padding = "12px 18px";
           hud.style.borderRadius = "12px";
-          hud.style.boxShadow = "0 10px 30px rgba(0,0,0,0.4)";
+          hud.style.boxShadow = "0 10px 30px rgba(0,0,0,0.5)";
           hud.style.fontFamily = "Inter, system-ui, sans-serif";
           hud.style.fontSize = "13px";
           hud.style.fontWeight = "600";
@@ -504,6 +505,37 @@ document.addEventListener("DOMContentLoaded", async () => {
           hud.style.border = "1px solid rgba(255,255,255,0.15)";
           (document.body || document.documentElement).appendChild(hud);
         }
+
+        const scrollTargets = [
+          window,
+          document.scrollingElement,
+          document.documentElement,
+          document.body,
+          document.querySelector(".scaffold-layout__main"),
+          document.querySelector(".mn-connections"),
+          document.querySelector(".scaffold-finite-scroll"),
+          document.querySelector("main")
+        ].filter(Boolean);
+
+        const doScroll = (deltaY) => {
+          window.scrollBy({ top: deltaY, behavior: "smooth" });
+          scrollTargets.forEach(el => {
+            if (el && el !== window && typeof el.scrollTop === "number") {
+              el.scrollTop += deltaY;
+            }
+          });
+          window.dispatchEvent(new Event("scroll", { bubbles: true }));
+          window.dispatchEvent(new WheelEvent("wheel", { deltaY: deltaY, bubbles: true }));
+        };
+
+        const clickShowMore = () => {
+          document.querySelectorAll("button.scaffold-finite-scroll__load-button, button.artdeco-button--secondary, button").forEach(b => {
+            const text = (b.innerText || "").toLowerCase();
+            if (text.includes("show more") || text.includes("load more") || text.includes("see more") || text.includes("next")) {
+              try { b.click(); } catch(e){}
+            }
+          });
+        };
 
         const extractFromDom = () => {
           const links = Array.from(document.querySelectorAll('a[href*="/in/"]'));
@@ -516,14 +548,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!cleanUrl || cleanUrl.endsWith("/in/") || cleanUrl.includes("/in/me")) return;
 
             // Find parent connection container
-            const card = link.closest("li, .artdeco-list__item, [data-view-name], .entity-result, .mn-connection-card, .mn-connections__list-item") || link.parentElement?.parentElement?.parentElement || link.parentElement?.parentElement;
+            const card = link.closest("li, .artdeco-list__item, [data-view-name*='connection'], [data-view-name], .entity-result, .mn-connection-card, .mn-connections__list-item, div[data-chameleon-result-urn]") || link.parentElement?.parentElement?.parentElement || link.parentElement?.parentElement;
             if (!card) return;
 
             const cardText = (card.innerText || "").trim();
 
             // Extract Name
             let name = "";
-            const nameEl = card.querySelector(".mn-connection-card__name, .entity-result__title-text, .artdeco-entity-lockup__title, .t-16.t-black.t-bold, h3, [data-view-name*='actor'] a, span[dir='ltr']");
+            const nameEl = card.querySelector(".mn-connection-card__name, .entity-result__title-text, .artdeco-entity-lockup__title, .t-16.t-black.t-bold, h3, [data-view-name*='actor'] a, span[dir='ltr'], a[href*='/in/'] span[aria-hidden='true']");
             if (nameEl) {
               name = (nameEl.innerText || "").trim().split("\n")[0];
             }
@@ -547,7 +579,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             // Extract Occupation
             let occupation = "";
-            const occEl = card.querySelector(".mn-connection-card__occupation, .entity-result__primary-subtitle, .artdeco-entity-lockup__caption, .artdeco-entity-lockup__subtitle, .t-14.t-normal, .entity-result__summary");
+            const occEl = card.querySelector(".mn-connection-card__occupation, .entity-result__primary-subtitle, .artdeco-entity-lockup__caption, .artdeco-entity-lockup__subtitle, .t-14.t-normal, .entity-result__summary, div[class*='entity-lockup__subtitle']");
             if (occEl) {
               occupation = (occEl.innerText || "").trim();
             } else {
@@ -600,7 +632,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           });
         };
 
-        const maxScrolls = 200; // Deep exhaustive traversal
+        const maxScrolls = 250;
         for (let i = 0; i < maxScrolls; i++) {
           extractFromDom();
 
@@ -616,65 +648,42 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
 
           if (totalCount > 0 && currentCount >= totalCount) {
-            break; // All contacts loaded!
+            break; // Full set scanned!
           }
+
+          clickShowMore();
 
           if (currentCount === prevCount && currentCount > 0) {
             noNew++;
-            if (noNew >= 8) break; // True end reached after 8 pump cycles
+            if (noNew >= 10) break; // Reached absolute end of list
             
-            // --- ACTIVE PUMP RECOVERY MECHANISM ---
-            // Step 1: Scroll UP by 1000px smoothly to unstuck observer
-            window.scrollBy({ top: -1000, behavior: "smooth" });
-            window.dispatchEvent(new WheelEvent("wheel", { deltaY: -1000, bubbles: true }));
+            // Back-and-forth pump: scroll up 700px, extract, trigger lazy-load, then step down
+            doScroll(-700);
             await new Promise(r => setTimeout(r, 450));
+            extractFromDom();
+            clickShowMore();
 
-            // Step 2: Click any 'Show more' / pagination buttons
-            document.querySelectorAll("button.scaffold-finite-scroll__load-button, button.artdeco-button--secondary, button").forEach(b => {
-              const text = (b.innerText || "").toLowerCase();
-              if (text.includes("show more") || text.includes("load more") || text.includes("see more")) {
-                try { b.click(); } catch(e){}
-              }
-            });
-
-            // Step 3: Force scroll Down past bottom
-            const scrollEl = document.scrollingElement || document.body || document.documentElement;
-            const scrollH = scrollEl ? scrollEl.scrollHeight : 5000;
-            window.scrollTo({ top: scrollH, behavior: "instant" });
-            window.scrollBy({ top: 1800, behavior: "instant" });
-            window.dispatchEvent(new Event("scroll", { bubbles: true }));
-            window.dispatchEvent(new WheelEvent("wheel", { deltaY: 2000, bubbles: true }));
-
-            // Step 4: Scroll internal scrollable containers
-            document.querySelectorAll("div, main, section").forEach(el => {
-              if (el.scrollHeight > el.clientHeight && el.clientHeight > 200) {
-                el.scrollTop = el.scrollHeight;
-              }
-            });
-
-            await new Promise(r => setTimeout(r, 1200));
+            doScroll(1300);
+            await new Promise(r => setTimeout(r, 650));
             continue;
           } else {
             noNew = 0;
           }
           prevCount = currentCount;
 
-          // Normal progression scroll
-          const scrollEl = document.scrollingElement || document.body || document.documentElement;
-          const scrollH = scrollEl ? scrollEl.scrollHeight : 5000;
-          window.scrollTo({ top: scrollH, behavior: "instant" });
-          window.scrollBy({ top: 1500, behavior: "instant" });
-          window.dispatchEvent(new Event("scroll", { bubbles: true }));
-          window.dispatchEvent(new WheelEvent("wheel", { deltaY: 1500, bubbles: true }));
-
-          document.querySelectorAll("div, main, section").forEach(el => {
-            if (el.scrollHeight > el.clientHeight && el.clientHeight > 200) {
-              el.scrollTop = el.scrollHeight;
-            }
-          });
-
-          await new Promise(r => setTimeout(r, 800));
+          // Progressive smooth step downwards
+          doScroll(480);
+          await new Promise(r => setTimeout(r, 450));
         }
+
+        // Final upward sweep to guarantee zero missed nodes
+        for (let j = 0; j < 30; j++) {
+          doScroll(-800);
+          extractFromDom();
+          await new Promise(r => setTimeout(r, 180));
+          if (window.scrollY <= 100) break;
+        }
+        window.scrollTo({ top: 0, behavior: "smooth" });
 
         extractFromDom();
 
@@ -713,7 +722,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           hud.style.color = "#ffffff";
           hud.style.padding = "12px 18px";
           hud.style.borderRadius = "12px";
-          hud.style.boxShadow = "0 10px 30px rgba(0,0,0,0.4)";
+          hud.style.boxShadow = "0 10px 30px rgba(0,0,0,0.5)";
           hud.style.fontFamily = "Inter, system-ui, sans-serif";
           hud.style.fontSize = "13px";
           hud.style.fontWeight = "600";
@@ -725,59 +734,100 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const expandMoreButtons = () => {
-          document.querySelectorAll("button.feed-shared-inline-show-more-text__see-more-less-toggle, button.see-more, [aria-label*='see more'], [aria-label*='more']").forEach(b => {
+          document.querySelectorAll("button.feed-shared-inline-show-more-text__see-more-less-toggle, button.see-more, [aria-label*='see more'], [aria-label*='more'], button[class*='see-more']").forEach(b => {
             try { b.click(); } catch(e) {}
           });
         };
 
-        const maxPostsScrolls = 80;
-        for (let i = 0; i < maxPostsScrolls; i++) {
+        const extractFromDom = () => {
           expandMoreButtons();
-          const postElems = Array.from(document.querySelectorAll("div.feed-shared-update-v2, div.feed-shared-text, .update-components-update-v2__commentary, .feed-shared-text-view, .update-components-text, div[data-view-name*='update'], article[data-activity-id]"));
+          const postElems = Array.from(document.querySelectorAll(
+            "div.feed-shared-update-v2, div[data-urn*='activity'], div[data-urn*='ugcPost'], div[data-view-name*='feed-full-update'], div[data-view-name*='update'], .update-components-update-v2__commentary, .feed-shared-update-v2__description, .feed-shared-text, .update-components-text, .feed-shared-inline-show-more-text, .feed-shared-text-view, article[data-activity-id], div.occludable-update, .comments-comment-item"
+          ));
           postElems.forEach(el => {
             const text = (el.innerText || "").trim().replace(/…see more|see less|\.\.\.more/gi, "").trim();
-            if (text.length > 25 && !text.startsWith("Like\n") && !text.startsWith("Comment\n") && !text.startsWith("All activity")) {
+            if (text.length > 20 && !text.startsWith("Like\n") && !text.startsWith("Comment\n") && !text.startsWith("All activity") && !text.startsWith("Nothing to see")) {
               const key = text.slice(0, 80);
               if (!postsMap.has(key)) postsMap.set(key, text);
             }
           });
+        };
 
-          if (hud) {
-            hud.innerHTML = `
-              <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#3b82f6; box-shadow:0 0 8px #3b82f6;"></span>
-              <span>Scanning Posts: <strong>${postsMap.size}</strong> Posts Extracted</span>
-            `;
-          }
+        // Check if there are Activity Tabs (All activity, Posts, Comments, Articles, Reactions)
+        const getTabs = () => {
+          return Array.from(document.querySelectorAll("button[role='tab'], a[role='tab'], button.artdeco-pill, ul.artdeco-carousel__track button, div[class*='feed-shared-tab'] button, [data-view-name*='activity'] button, nav button"));
+        };
 
-          if (postsMap.size === prevCount && postsMap.size > 0) {
-            noNew++;
-            if (noNew >= 6) break;
-            // Up-down pump
-            window.scrollBy({ top: -800, behavior: "smooth" });
-            await new Promise(r => setTimeout(r, 450));
-            window.scrollBy({ top: 1600, behavior: "instant" });
-            await new Promise(r => setTimeout(r, 1100));
-            continue;
-          } else {
-            noNew = 0;
-          }
-          prevCount = postsMap.size;
+        const activityTabs = getTabs();
 
-          const scrollEl = document.scrollingElement || document.body || document.documentElement;
-          const scrollH = scrollEl ? scrollEl.scrollHeight : 5000;
-          window.scrollTo({ top: scrollH, behavior: "instant" });
-          window.scrollBy({ top: 1400, behavior: "instant" });
-          window.dispatchEvent(new Event("scroll", { bubbles: true }));
-          window.dispatchEvent(new WheelEvent("wheel", { deltaY: 1400, bubbles: true }));
-
-          document.querySelectorAll("div, main, section").forEach(el => {
-            if (el.scrollHeight > el.clientHeight && el.clientHeight > 200) {
-              el.scrollTop = el.scrollHeight;
+        const tabsToVisit = [];
+        if (activityTabs.length > 0) {
+          activityTabs.forEach(t => {
+            const label = (t.innerText || "").toLowerCase();
+            if (label.includes("all") || label.includes("post") || label.includes("comment") || label.includes("article") || label.includes("reaction") || label.includes("image")) {
+              tabsToVisit.push(t);
             }
           });
-
-          await new Promise(r => setTimeout(r, 850));
         }
+
+        const scanCurrentView = async (tabName = "Feed") => {
+          let innerPrev = 0;
+          let innerNoNew = 0;
+          const maxSteps = 45;
+
+          for (let i = 0; i < maxSteps; i++) {
+            extractFromDom();
+
+            if (hud) {
+              hud.innerHTML = `
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#3b82f6; box-shadow:0 0 8px #3b82f6;"></span>
+                <span>Scanning ${tabName}: <strong>${postsMap.size}</strong> Posts Extracted</span>
+              `;
+            }
+
+            if (postsMap.size === innerPrev && postsMap.size > 0) {
+              innerNoNew++;
+              if (innerNoNew >= 5) break;
+              window.scrollBy({ top: -600, behavior: "smooth" });
+              await new Promise(r => setTimeout(r, 400));
+              window.scrollBy({ top: 1200, behavior: "instant" });
+              await new Promise(r => setTimeout(r, 600));
+              continue;
+            } else {
+              innerNoNew = 0;
+            }
+            innerPrev = postsMap.size;
+
+            window.scrollBy({ top: 500, behavior: "smooth" });
+            window.dispatchEvent(new Event("scroll", { bubbles: true }));
+            window.dispatchEvent(new WheelEvent("wheel", { deltaY: 500, bubbles: true }));
+
+            document.querySelectorAll("div, main, section").forEach(el => {
+              if (el.scrollHeight > el.clientHeight && el.clientHeight > 200) {
+                el.scrollTop += 500;
+              }
+            });
+
+            await new Promise(r => setTimeout(r, 500));
+          }
+        };
+
+        // Scan initial tab
+        await scanCurrentView("Activity");
+
+        // If 0 posts extracted or multiple tabs exist, click through remaining activity tabs (All activity, Comments, Articles, etc.)
+        if (tabsToVisit.length > 1) {
+          for (const tabBtn of tabsToVisit) {
+            const label = (tabBtn.innerText || "").trim().split("\n")[0];
+            try {
+              tabBtn.click();
+              await new Promise(r => setTimeout(r, 1200));
+              await scanCurrentView(label);
+            } catch(e) {}
+          }
+        }
+
+        extractFromDom();
 
         if (hud) {
           hud.innerHTML = `
@@ -984,7 +1034,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await navigateAndWait(tab.id, "https://www.linkedin.com/in/me/recent-activity/all/");
       }
 
-      showToast("Live Scanning Posts Feed...", "loading");
+      showToast("Live Scanning Activity & Posts...", "loading");
       const postsList = await performLivePostsScan(tab.id);
       const postsText = postsList.join("\n\n---\n\n");
 

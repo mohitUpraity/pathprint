@@ -89,10 +89,14 @@ app.add_middleware(
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Global unhandled error on {request.method} {request.url.path}: {exc}", exc_info=True)
-    return JSONResponse(
+    origin = request.headers.get("origin", "*")
+    response = JSONResponse(
         status_code=500,
         content={"detail": str(exc), "status": "error"}
     )
+    response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 # Register Phase 1 Core API Routers
 app.include_router(health.router, prefix="/api/v1")

@@ -17,7 +17,7 @@ export const apiService = {
     try {
       const res = await fetch(`${API_BASE}/api/v1/profile/graph`, {
         headers,
-        signal: AbortSignal.timeout(6000)
+        signal: AbortSignal.timeout(25000)
       });
       if (!res.ok) throw new Error(`Failed to load graph (${res.status})`);
       return await res.json();
@@ -31,7 +31,7 @@ export const apiService = {
     try {
       const res = await fetch(`${API_BASE}/api/v1/profile/analysis`, {
         headers,
-        signal: AbortSignal.timeout(6000)
+        signal: AbortSignal.timeout(25000)
       });
       if (!res.ok) throw new Error(`Failed to load profile analysis (${res.status})`);
       const data = await res.json();

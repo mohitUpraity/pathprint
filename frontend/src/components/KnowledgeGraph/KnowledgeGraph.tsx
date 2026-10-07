@@ -71,7 +71,7 @@ export interface CategoryTheme {
   description: string;
 }
 
-export const CATEGORY_THEMES: Record<string, CategoryTheme> = {
+const CATEGORY_THEMES: Record<string, CategoryTheme> = {
   Candidate: {
     id: 'Candidate',
     label: 'You (Profile)',

@@ -16,7 +16,14 @@ class LLMService:
             candidates.append(requested_model)
         if settings.GROQ_MODEL and settings.GROQ_MODEL not in candidates:
             candidates.append(settings.GROQ_MODEL)
-        for fallback in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]:
+        for fallback in [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "llama-3.2-3b-preview",
+            "llama-3.2-1b-preview",
+            "deepseek-r1-distill-llama-70b",
+            "qwen-2.5-32b"
+        ]:
             if fallback not in candidates:
                 candidates.append(fallback)
         return candidates
@@ -75,6 +82,9 @@ class LLMService:
                         elif resp.status_code == 429:
                             logger.warning(f"Groq model {g_model} rate limited (429), trying next candidate...")
                             continue
+                        elif resp.status_code in (401, 403):
+                            logger.warning(f"Groq API key error ({resp.status_code}), cascading to Gemini fallback...")
+                            break
                         else:
                             logger.warning(f"Groq model {g_model} returned {resp.status_code}: {resp.text[:200]}")
                 except Exception as e:
@@ -171,6 +181,9 @@ class LLMService:
                         if resp.status_code == 200:
                             data = resp.json()
                             return data["choices"][0]["message"]["content"].strip()
+                        elif resp.status_code in (401, 403):
+                            logger.warning(f"Groq API key error ({resp.status_code}), cascading to Gemini fallback...")
+                            break
                         else:
                             logger.warning(f"Groq chat model {g_model} returned {resp.status_code}: {resp.text[:200]}")
                 except Exception as e:

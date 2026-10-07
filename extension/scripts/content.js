@@ -59,13 +59,53 @@
     return false;
   });
 
-  // Deep Auto-Scroll Scanner for Connections
+  // Deep Exhaustive Auto-Scroll Scanner for Connections
   async function deepScanConnections(onProgress) {
     const connectionsMap = new Map();
     let prevCount = 0;
     let noNewCount = 0;
-    const maxScrolls = 150;
+    const maxScrolls = 250;
 
+    // Detect total connection count if present in header
+    let totalCount = 0;
+    const headerText = document.body ? document.body.innerText : "";
+    const countMatch = headerText.match(/(\d[\d,]*)\s+connections/i);
+    if (countMatch && countMatch[1]) {
+      totalCount = parseInt(countMatch[1].replace(/,/g, ""), 10) || 0;
+    }
+
+    const scrollTargets = [
+      window,
+      document.scrollingElement,
+      document.documentElement,
+      document.body,
+      document.querySelector(".scaffold-layout__main"),
+      document.querySelector(".mn-connections"),
+      document.querySelector(".scaffold-finite-scroll"),
+      document.querySelector("main")
+    ].filter(Boolean);
+
+    const doScrollStep = (deltaY) => {
+      window.scrollBy({ top: deltaY, behavior: "smooth" });
+      scrollTargets.forEach(el => {
+        if (el && el !== window && typeof el.scrollTop === "number") {
+          el.scrollTop += deltaY;
+        }
+      });
+      window.dispatchEvent(new Event("scroll", { bubbles: true }));
+      window.dispatchEvent(new WheelEvent("wheel", { deltaY: deltaY, bubbles: true }));
+    };
+
+    const clickShowMore = () => {
+      document.querySelectorAll("button.scaffold-finite-scroll__load-button, button.artdeco-button--secondary, button").forEach(b => {
+        const text = (b.innerText || "").toLowerCase();
+        if (text.includes("show more") || text.includes("load more") || text.includes("see more")) {
+          try { b.click(); } catch(e){}
+        }
+      });
+    };
+
+    // Forward incremental sweep
     for (let i = 0; i < maxScrolls; i++) {
       const batch = extractConnectionsData();
       batch.forEach(c => {
@@ -75,35 +115,44 @@
       const currentCount = connectionsMap.size;
       if (onProgress) onProgress({ count: currentCount, isDone: false });
 
+      if (totalCount > 0 && currentCount >= totalCount) {
+        break; // All connections found
+      }
+
+      clickShowMore();
+
       if (currentCount === prevCount && currentCount > 0) {
         noNewCount++;
-        if (noNewCount >= 6) break;
-        window.scrollBy({ top: -500, behavior: "smooth" });
+        if (noNewCount >= 10) break; // Exhausted all pages
+        
+        // Active back-and-forth pump: scroll UP to unstuck observer, extract on way up
+        doScrollStep(-700);
         await new Promise(r => setTimeout(r, 400));
+        
+        const upBatch = extractConnectionsData();
+        upBatch.forEach(c => { if (c.name) connectionsMap.set(c.name, c); });
+        
+        clickShowMore();
+        doScrollStep(1200);
+        await new Promise(r => setTimeout(r, 600));
       } else {
         noNewCount = 0;
       }
       prevCount = currentCount;
 
-      document.querySelectorAll("button.scaffold-finite-scroll__load-button, button.artdeco-button--secondary").forEach(b => {
-        if (b.innerText && b.innerText.toLowerCase().includes("show more")) {
-          try { b.click(); } catch(e){}
-        }
-      });
-
-      window.scrollBy({ top: 1500, behavior: "instant" });
-      const scrollEl = document.scrollingElement || document.body || document.documentElement;
-      if (scrollEl) {
-        window.scrollTo({ top: scrollEl.scrollHeight, behavior: "instant" });
-      }
-      document.querySelectorAll("div, main, section").forEach(el => {
-        if (el.scrollHeight > el.clientHeight && el.clientHeight > 200) {
-          el.scrollTop = el.scrollHeight;
-        }
-      });
-      await new Promise(r => setTimeout(r, 850));
+      // Smooth step downwards (480px ensures no cards are jumped over)
+      doScrollStep(480);
+      await new Promise(r => setTimeout(r, 450));
     }
 
+    // Reverse sweep back to top to catch any skipped/recycled DOM cards
+    for (let j = 0; j < 30; j++) {
+      doScrollStep(-800);
+      const revBatch = extractConnectionsData();
+      revBatch.forEach(c => { if (c.name) connectionsMap.set(c.name, c); });
+      await new Promise(r => setTimeout(r, 200));
+      if (window.scrollY <= 100) break;
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     const finalResults = Array.from(connectionsMap.values());
@@ -129,14 +178,14 @@
       }
 
       // Find enclosing card
-      const card = linkEl.closest("li, .mn-connection-card, .entity-result, .artdeco-list__item, [data-view-name], .mn-connections__list-item") || linkEl.parentElement?.parentElement?.parentElement || linkEl.parentElement?.parentElement;
+      const card = linkEl.closest("li, .mn-connection-card, .entity-result, .artdeco-list__item, [data-view-name*='connection'], [data-view-name], .mn-connections__list-item, div[data-chameleon-result-urn]") || linkEl.parentElement?.parentElement?.parentElement || linkEl.parentElement?.parentElement;
       if (!card) return;
 
       const cardText = (card.innerText || "").trim();
 
       // Extract Name
       let name = "";
-      const nameEl = card.querySelector(".mn-connection-card__name, .entity-result__title-text, .artdeco-entity-lockup__title, .t-16.t-black.t-bold, h3, [data-view-name*='actor'] a, span[dir='ltr']");
+      const nameEl = card.querySelector(".mn-connection-card__name, .entity-result__title-text, .artdeco-entity-lockup__title, .t-16.t-black.t-bold, h3, [data-view-name*='actor'] a, span[dir='ltr'], a[href*='/in/'] span[aria-hidden='true']");
       if (nameEl) {
         name = (nameEl.innerText || "").trim().split("\n")[0];
       }
@@ -149,21 +198,21 @@
       if (!name || name.length < 2) {
         const lines = cardText.split("\n").map(l => l.trim()).filter(Boolean);
         for (const line of lines) {
-          if (line.length >= 2 && line.length <= 40 && !line.includes("Connected") && !line.includes("Message") && !line.includes("Connect") && !line.includes("Sort by") && !line.includes("connections")) {
+          if (line.length >= 2 && line.length <= 40 && !line.includes("Connected") && !line.includes("Message") && !line.includes("Connect") && !line.includes("following") && !line.includes("Sort by") && !line.includes("connections")) {
             name = line;
             break;
           }
         }
       }
 
-      if (!name || name.toLowerCase().includes("connections") || name.toLowerCase().includes("linkedin member") || seenNames.has(name) || name.length < 2) return;
+      if (!name || name.toLowerCase().includes("connections") || name.toLowerCase().includes("linkedin member") || name.toLowerCase().includes("sort by") || seenNames.has(name) || name.length < 2) return;
 
       seenUrls.add(href);
       seenNames.add(name);
 
       // Extract Occupation
       let occupation = "";
-      const occEl = card.querySelector(".mn-connection-card__occupation, .entity-result__primary-subtitle, .artdeco-entity-lockup__caption, .artdeco-entity-lockup__subtitle, .t-14.t-normal, .entity-result__summary");
+      const occEl = card.querySelector(".mn-connection-card__occupation, .entity-result__primary-subtitle, .artdeco-entity-lockup__caption, .artdeco-entity-lockup__subtitle, .t-14.t-normal, .entity-result__summary, div[class*='entity-lockup__subtitle']");
       if (occEl) {
         occupation = (occEl.innerText || "").trim();
       } else {
@@ -174,7 +223,7 @@
         }
       }
 
-      let connectedOn = "Recent";
+      let connectedOn = new Date().toLocaleDateString();
       const dateMatch = cardText.match(/Connected on\s+([A-Za-z]+\s+\d+,\s+\d{4})/i) || cardText.match(/Connected\s+([A-Za-z]+\s+\d+,\s+\d{4})/i);
       if (dateMatch) connectedOn = dateMatch[1];
 
@@ -189,6 +238,10 @@
       } else if (occupation.includes(" student at ")) {
         position = occupation.split(" student at ")[0].trim();
         company = occupation.split(" student at ").slice(1).join(" student at ").trim();
+      } else if (occupation.includes("|")) {
+        const parts = occupation.split("|");
+        position = parts[0].trim();
+        company = parts.slice(1).join("|").trim();
       } else if (occupation.toLowerCase().includes("sharda")) {
         company = "Sharda University";
       } else if (occupation.toLowerCase().includes("hindustan") || occupation.toLowerCase().includes("hcst")) {
@@ -197,11 +250,15 @@
         company = "Anand Engineering College";
       }
 
+      const nameParts = name.split(" ");
+      const first_name = nameParts[0] || name;
+      const last_name = nameParts.slice(1).join(" ") || "";
+
       connections.push({
         id: `conn_${connections.length + 1}_${name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
         name: name,
-        first_name: name.split(" ")[0] || name,
-        last_name: name.split(" ").slice(1).join(" ") || "",
+        first_name: first_name,
+        last_name: last_name,
         position: position,
         company: company || "Industry Network",
         profile_url: href,
@@ -317,7 +374,7 @@
     };
   }
 
-  // Enhanced Universal Recent Posts Extractor
+  // Enhanced Universal Recent Posts & Activity Extractor
   function extractRecentPosts() {
     // 1. Expand all '...see more' buttons
     document.querySelectorAll("button.feed-shared-inline-show-more-text__see-more-less-toggle, button.see-more, [aria-label*='more'], button[class*='see-more']").forEach(b => {
@@ -328,7 +385,7 @@
     const seen = new Set();
 
     const postElements = document.querySelectorAll(
-      "div.feed-shared-update-v2, div[data-view-name*='update'], .update-components-update-v2__commentary, .feed-shared-update-v2__description, .feed-shared-text, .update-components-text, .feed-shared-inline-show-more-text, .feed-shared-text-view, article[data-activity-id], div.occludable-update"
+      "div.feed-shared-update-v2, div[data-urn*='activity'], div[data-urn*='ugcPost'], div[data-view-name*='feed-full-update'], div[data-view-name*='update'], .update-components-update-v2__commentary, .feed-shared-update-v2__description, .feed-shared-text, .update-components-text, .feed-shared-inline-show-more-text, .feed-shared-text-view, article[data-activity-id], div.occludable-update, .comments-comment-item"
     );
 
     postElements.forEach(el => {
@@ -336,13 +393,13 @@
       // Clean noise
       text = text.replace(/…see more|see less|\.\.\.more/gi, "").trim();
 
-      if (text && text.length > 15 && !text.startsWith("Like\n") && !text.startsWith("Comment\n") && !text.startsWith("All activity") && !seen.has(text)) {
+      if (text && text.length > 20 && !text.startsWith("Like\n") && !text.startsWith("Comment\n") && !text.startsWith("All activity") && !text.startsWith("Nothing to see") && !seen.has(text)) {
         seen.add(text);
         posts.push(text);
       }
     });
 
-    return posts.slice(0, 15);
+    return posts.slice(0, 30);
   }
 
   function extractJobData() {

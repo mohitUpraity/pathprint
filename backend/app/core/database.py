@@ -18,7 +18,13 @@ class Neo4jClient:
         try:
             self.driver = AsyncGraphDatabase.driver(
                 settings.NEO4J_URI,
-                auth=(settings.NEO4J_USERNAME, settings.NEO4J_PASSWORD)
+                auth=(settings.NEO4J_USERNAME, settings.NEO4J_PASSWORD),
+                connection_acquisition_timeout=15.0,
+                connection_timeout=10.0,
+                max_connection_lifetime=180.0,
+                liveness_check_timeout=1.0,
+                keep_alive=True,
+                max_connection_pool_size=50
             )
             # Verify connectivity
             await self.driver.verify_connectivity()
@@ -31,7 +37,11 @@ class Neo4jClient:
 
     async def close(self):
         if self.driver:
-            await self.driver.close()
+            try:
+                await self.driver.close()
+            except Exception:
+                pass
+            self.driver = None
             self.is_connected = False
             logger.info("Neo4j driver closed.")
 
@@ -54,21 +64,28 @@ class Neo4jClient:
             "CREATE INDEX skill_category_index IF NOT EXISTS FOR (s:Skill) ON (s.category)"
         ]
 
-        async with self.driver.session(database=settings.NEO4J_DATABASE) as session:
-            for query in constraints:
-                try:
-                    await session.run(query)
-                except Exception as e:
-                    logger.debug(f"Schema query info: {e}")
-        logger.info("Neo4j schema constraints and indexes verified.")
+        try:
+            async with self.driver.session(database=settings.NEO4J_DATABASE) as session:
+                for query in constraints:
+                    try:
+                        await session.run(query)
+                    except Exception as e:
+                        logger.debug(f"Schema query info: {e}")
+            logger.info("Neo4j schema constraints and indexes verified.")
+        except Exception as e:
+            logger.warning(f"Neo4j init_schema notice ({e}). Operating in fallback mode.")
 
     async def execute_query(self, query: str, parameters: dict = None):
         if not self.driver or not self.is_connected:
             logger.debug(f"Neo4j offline. Query skipped: {query[:40]}...")
             return []
-        async with self.driver.session(database=settings.NEO4J_DATABASE) as session:
-            result = await session.run(query, parameters or {})
-            records = [record.data() async for record in result]
-            return records
+        try:
+            async with self.driver.session(database=settings.NEO4J_DATABASE) as session:
+                result = await session.run(query, parameters or {})
+                records = [record.data() async for record in result]
+                return records
+        except Exception as e:
+            logger.warning(f"Neo4j execute_query error ({e}). Returning fallback results.")
+            return []
 
 neo4j_client = Neo4jClient()
