@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PathPrint Co-Pilot</title>
+  <link rel="stylesheet" href="popup.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Brand Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <div class="brand-title-row">
+            <h1 class="brand-title">PathPrint</h1>
+            <span class="badge-tag">v5.0</span>
+          </div>
+          <span class="brand-sub">Graph Intelligence & Referral Co-Pilot</span>
+        </div>
+      </div>
+      
+      <div class="status-indicator" id="backendStatus">
+        <span class="status-dot"></span>
+        <span id="statusText">Online</span>
+      </div>
+    </header>
+
+    <!-- Connected User Account Badge / Auto-Link Banner -->
+    <section class="account-card" id="accountCard">
+      <div class="account-info">
+        <span class="account-dot" id="accountDot"></span>
+        <div class="account-text-group">
+          <span class="account-label">Linked Account</span>
+          <strong class="account-name" id="accountUserDisplay">Auto-detecting PathPrint...</strong>
+        </div>
+      </div>
+      <button class="btn-account-sync" id="btnAutoLinkAccount" title="Auto-detect active PathPrint Web App session">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        <span>Link Tab</span>
+      </button>
+    </section>
+
+    <!-- Workspace & Backend Config -->
+    <section class="card config-card">
+      <div class="config-row">
+        <div class="config-field">
+          <label class="field-label">Target Account ID / Email</label>
+          <input type="text" id="userIdInput" class="custom-input" placeholder="e.g. 4JzJQX61eshV7BAfG1OxHTBY0Xp2" />
+        </div>
+        <div class="config-field">
+          <label class="field-label">Cloud Backend</label>
+          <div class="select-wrapper">
+            <select id="backendSelect" class="custom-select">
+              <option value="https://pathprintv5.onrender.com/api/v1">Cloud (Render)</option>
+              <option value="http://localhost:8000/api/v1">Local (8000)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs Switcher -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" id="tabMyGraphBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+        <span>My Graph Sync</span>
+      </button>
+      <button class="nav-tab" id="tabTargetScanBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
+        <span>Scan Viewed Profile</span>
+        <span class="tab-badge">New</span>
+      </button>
+    </nav>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: MY CAREEROS GRAPH (Candidate Auto-Pilot Sync) -->
+    <!-- ========================================================================= -->
+    <div id="tabMyGraphContent" class="tab-content active">
+      <!-- Master Autonomous Full Sync -->
+      <section class="actions-group">
+        <button id="masterSyncBtn" class="action-btn btn-primary">
+          <div class="btn-icon-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+          </div>
+          <div class="btn-content">
+            <div class="btn-title">Auto-Pilot Full Sync</div>
+            <div class="btn-desc">Autonomous traversal: Profile ➔ 800+ Conn ➔ Posts</div>
+          </div>
+          <div class="btn-arrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </div>
+        </button>
+
+        <!-- Quick Delta Sync -->
+        <button id="deltaSyncBtn" class="action-btn btn-delta">
+          <div class="btn-icon-box btn-icon-delta">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+          </div>
+          <div class="btn-content">
+            <div class="btn-title">⚡ Quick Delta Sync (New Only)</div>
+            <div class="btn-desc">Syncs newest contacts & posts since last checkpoint</div>
+          </div>
+          <div class="btn-arrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </div>
+        </button>
+      </section>
+
+      <!-- Modular Controls Card -->
+      <section class="card modular-card">
+        <div class="card-header-mini">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>MANUAL MODULAR SYNC</span>
+        </div>
+        <div class="modular-grid four-col">
+          <button class="mod-btn" id="syncProfileOnlyBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+            <span>Profile</span>
+          </button>
+          <button class="mod-btn" id="syncConnOnlyBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <span>All Conn</span>
+          </button>
+          <button class="mod-btn" id="syncDeltaConnBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            <span>Delta</span>
+          </button>
+          <button class="mod-btn" id="syncPostsOnlyBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            <span>Posts</span>
+          </button>
+        </div>
+
+        <!-- 1-Click CSV Ingestion -->
+        <div class="csv-upload-row">
+          <input type="file" id="csvFileInput" accept=".csv" class="hidden-file-input">
+          <button class="csv-btn" id="uploadCsvBtn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Instant Import LinkedIn Connections.csv</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Active Tab Context Card -->
+      <section class="card context-card" id="contextCard">
+        <div class="card-header-mini">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+          <span id="contextHeaderTitle">Active LinkedIn View</span>
+        </div>
+        <div class="context-body" id="contextBody">
+          <span class="context-empty">Inspecting active tab...</span>
+        </div>
+        
+        <div class="nav-chips-row">
+          <button class="nav-chip" id="navProfileBtn">Profile</button>
+          <button class="nav-chip" id="navPostsBtn">Posts</button>
+          <button class="nav-chip" id="navConnectionsBtn">Connections</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: SCAN VIEWED PROFILE (Target Person & Referral Bridge Scanner) -->
+    <!-- ========================================================================= -->
+    <div id="tabTargetScanContent" class="tab-content">
+      <!-- Target Profile Inspector Card -->
+      <section class="card target-inspector-card">
+        <div class="target-profile-header">
+          <div class="target-avatar-badge" id="targetAvatarBadge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="target-header-meta">
+            <div class="target-name-row">
+              <h3 class="target-name" id="targetProfileName">Detecting Profile...</h3>
+              <span class="badge-alumni hidden" id="targetAlumniBadge">🎓 Shared Alum</span>
+            </div>
+            <p class="target-headline" id="targetProfileHeadline">Open any LinkedIn profile to scan</p>
+          </div>
+        </div>
+
+        <div class="target-details-grid" id="targetDetailsGrid">
+          <div class="target-detail-chip">
+            <span class="detail-label">Company</span>
+            <strong class="detail-val" id="targetCompanyVal">--</strong>
+          </div>
+          <div class="target-detail-chip">
+            <span class="detail-label">Role</span>
+            <strong class="detail-val" id="targetRoleVal">--</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 Specific Scanner Actions for Opened Profile -->
+      <section class="actions-group">
+        <!-- 1. Scan & Link Profile -->
+        <button id="scanTargetProfileBtn" class="action-btn btn-target-primary">
+          <div class="btn-icon-box btn-icon-target">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </div>
+          <div class="btn-content">
+            <div class="btn-title">1. Link Person to Career Graph</div>
+            <div class="btn-desc">Extracts role, company, college & builds referral edge</div>
+          </div>
+        </button>
+
+        <!-- 2. Scan Target's Recent Posts & Hiring Leads -->
+        <button id="scanTargetPostsBtn" class="action-btn btn-target-secondary">
+          <div class="btn-icon-box btn-icon-posts">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          </div>
+          <div class="btn-content">
+            <div class="btn-title">2. Scan Recent Posts & Hiring Signals</div>
+            <div class="btn-desc">Detects 'We are hiring', hackathon updates, or lead posts</div>
+          </div>
+        </button>
+
+        <!-- 3. Scan Visible Connections List on Current Page -->
+        <button id="scanTargetConnectionsBtn" class="action-btn btn-target-tertiary">
+          <div class="btn-icon-box btn-icon-network">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div class="btn-content">
+            <div class="btn-title">3. Scan Visible Network on Page</div>
+            <div class="btn-desc">Scans connection cards in current view to expand graph</div>
+          </div>
+        </button>
+      </section>
+
+      <!-- Instant Referral Outreach Generator Card -->
+      <section class="card outreach-preview-card" id="outreachCard">
+        <div class="card-header-mini">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span>AI REFERRAL PITCH GENERATOR</span>
+        </div>
+        <div class="outreach-box">
+          <p class="outreach-text" id="outreachPitchText">Click below to generate a high-impact personalized referral request using your verified GitHub & hackathon projects (e.g. SIH 2024 win, DRDO NGFW).</p>
+        </div>
+        <button class="btn-pitch-generate" id="generatePitchBtn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Generate Tailored Referral Pitch</span>
+        </button>
+      </section>
+    </div>
+
+    <!-- Progress Pipeline Stepper -->
+    <div id="syncProgressContainer" class="card progress-card hidden">
+      <div class="progress-meta">
+        <span class="progress-title" id="progressTitle">Syncing Knowledge Graph...</span>
+        <span class="progress-val" id="progressPercent">0%</span>
+      </div>
+      <div class="progress-track">
+        <div id="progressBarFill" class="progress-fill"></div>
+      </div>
+      <div class="stepper-pipeline">
+        <div class="stepper-step" id="step1">
+          <div class="step-indicator">
+            <svg class="icon-idle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+            <svg class="icon-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <svg class="icon-done" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <span class="step-label" id="step1Label">Profile, College & Experience</span>
+        </div>
+        <div class="stepper-step" id="step2">
+          <div class="step-indicator">
+            <svg class="icon-idle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+            <svg class="icon-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <svg class="icon-done" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <span class="step-label" id="step2Label">Posts & Hackathons (AI Extract)</span>
+        </div>
+        <div class="stepper-step" id="step3">
+          <div class="step-indicator">
+            <svg class="icon-idle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+            <svg class="icon-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <svg class="icon-done" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <span class="step-label" id="step3Label">Network & Alumni Referral Paths</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Real-Time Sync Summary Report Card -->
+    <section class="card report-card hidden" id="syncReportCard">
+      <div class="report-header">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Knowledge Graph Sync Report</span>
+      </div>
+      <div class="report-grid">
+        <div class="report-stat">
+          <span class="stat-label">Candidate</span>
+          <strong class="stat-val" id="reportCandidate">Candidate Workspace</strong>
+        </div>
+        <div class="report-stat">
+          <span class="stat-label">Verified Repos</span>
+          <strong class="stat-val" id="reportRepos">4 Active</strong>
+        </div>
+        <div class="report-stat">
+          <span class="stat-label">Hackathons / DRDO</span>
+          <strong class="stat-val" id="reportMilestones">Synced</strong>
+        </div>
+        <div class="report-stat">
+          <span class="stat-label">Connections Mapped</span>
+          <strong class="stat-val" id="reportConnections">--</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notification Toast Banner -->
+    <div id="resultBanner" class="toast-banner hidden">
+      <div class="toast-icon" id="toastIcon"></div>
+      <div class="toast-msg" id="toastMsg"></div>
+    </div>
+
+    <!-- Footer Links -->
+    <footer class="footer">
+      <a href="https://pathprintv5.onrender.com/docs" id="apiDocsLink" target="_blank" class="footer-link">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+        API Docs
+      </a>
+      <span class="footer-sep">·</span>
+      <a href="https://pathprintv5.vercel.app" id="dashboardLink" target="_blank" class="footer-link">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline></svg>
+        PathPrint App
+      </a>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

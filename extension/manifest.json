@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "PathPrint Intelligence & Sync Co-Pilot",
+  "version": "1.0.0",
+  "description": "1-Click LinkedIn Profile, Jobs, and Connections Graph Synchronizer for PathPrint.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.linkedin.com/*",
+    "http://localhost/*",
+    "http://localhost:*/*",
+    "http://localhost:5173/*",
+    "http://localhost:3000/*",
+    "http://localhost:8000/*",
+    "http://127.0.0.1/*",
+    "http://127.0.0.1:*/*",
+    "http://127.0.0.1:5173/*",
+    "http://127.0.0.1:3000/*",
+    "http://127.0.0.1:8000/*",
+    "https://*.onrender.com/*",
+    "https://*.vercel.app/*"
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "PathPrint Co-Pilot",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "scripts/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.linkedin.com/*"
+      ],
+      "js": [
+        "scripts/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
