@@ -64,41 +64,27 @@ graph TD
 
 ---
 
-## ⚡ Quickstart Guide
+## ⚡ 1-Click Quickstart
 
-### Prerequisites
-- Python 3.10+
-- Node.js 18+ and npm
-- (Optional) Neo4j AuraDB instance and Gemini / Groq API keys
+When you clone the repository, you only need to run **one command**:
 
-### 1. Clone & Configure Environment
 ```bash
-# Navigate to project directory
+git clone https://github.com/YOUR_USERNAME/pathprint.git
 cd pathprint
-
-# Create local environment config
-cp .env.example .env
-# Edit .env and supply your GEMINI_API_KEY / GROQ_API_KEY (optional for mock fallbacks)
+./setup-and-run.sh
 ```
 
-### 2. Install Dependencies
-```bash
-# Backend dependencies
-cd backend
-pip install -r requirements.txt
-cd ..
+### What `setup-and-run.sh` does automatically:
+1. Verifies system prerequisites (`python3` and `node/npm`).
+2. Configures `.env` files automatically from `.env.example`.
+3. Creates a Python virtual environment (`./venv`) and installs backend dependencies (`requirements.txt`).
+4. Installs frontend npm packages (`node_modules`).
+5. Clears ports 8000 and 5173 to prevent conflicts.
+6. Launches both the **FastAPI Backend (8000)** and **Vite Frontend (5173)** in parallel.
 
-# Frontend dependencies
-cd frontend
-npm install
-cd ..
-```
+---
 
-### 3. Launch Fullstack Services
-Use the automated service orchestration script:
-```bash
-./start-services.sh
-```
+### Access Endpoints
 - **Frontend Dashboard**: [http://localhost:5173](http://localhost:5173)
 - **FastAPI Core API**: [http://localhost:8000](http://localhost:8000)
 - **Interactive API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
