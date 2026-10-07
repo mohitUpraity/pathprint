@@ -16,7 +16,7 @@ class LLMService:
             candidates.append(requested_model)
         if settings.GROQ_MODEL and settings.GROQ_MODEL not in candidates:
             candidates.append(settings.GROQ_MODEL)
-        for fallback in ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]:
+        for fallback in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]:
             if fallback not in candidates:
                 candidates.append(fallback)
         return candidates
@@ -65,13 +65,16 @@ class LLMService:
                         "response_format": {"type": "json_object"}
                     }
 
-                    async with httpx.AsyncClient(timeout=4.0) as client:
+                    async with httpx.AsyncClient(timeout=8.0) as client:
                         resp = await client.post(cls.GROQ_URL, headers=headers, json=payload)
                         if resp.status_code == 200:
                             data = resp.json()
                             content = data["choices"][0]["message"]["content"]
                             clean_content = content.strip().replace("```json", "").replace("```", "").strip()
                             return json.loads(clean_content)
+                        elif resp.status_code == 429:
+                            logger.warning(f"Groq model {g_model} rate limited (429), trying next candidate...")
+                            continue
                         else:
                             logger.warning(f"Groq model {g_model} returned {resp.status_code}: {resp.text[:200]}")
                 except Exception as e:
@@ -80,10 +83,10 @@ class LLMService:
         # 2. Fallback to Gemini if configured
         if settings.GEMINI_API_KEY:
             for gem_model_name in [
-                "gemini-1.5-flash",
-                "gemini-2.0-flash-exp",
-                "gemini-1.5-pro",
-                "gemini-flash-latest"
+                "gemini-2.5-flash",
+                "gemini-2.0-flash",
+                "gemini-1.5-flash-latest",
+                "gemini-1.5-flash"
             ]:
                 try:
                     import google.generativeai as genai
@@ -91,7 +94,6 @@ class LLMService:
                     genai.configure(api_key=settings.GEMINI_API_KEY)
 
                     if messages and len(messages) > 1:
-                        # Multi-turn Gemini chat
                         system_inst = ""
                         chat_history = []
                         last_user_message = user_prompt
@@ -127,7 +129,7 @@ class LLMService:
                             clean_text = clean_text.split("```")[1].split("```")[0].strip()
                         return json.loads(clean_text)
                 except Exception as ge:
-                    logger.warning(f"Gemini model {gem_model_name} failed: {ge}")
+                    logger.debug(f"Gemini model {gem_model_name} notice: {ge}")
 
         return None
 
